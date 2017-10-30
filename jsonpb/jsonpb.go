@@ -674,6 +674,9 @@ type Unmarshaler struct {
 	// Whether to allow messages to contain unknown fields, as opposed to
 	// failing to unmarshal.
 	AllowUnknownFields bool
+
+	// Whether to allow numbers 1|0 to coerce to true|false
+	CoerceNumberToBool bool
 }
 
 // UnmarshalNext unmarshals the next protocol buffer from a JSON object stream.
@@ -1120,6 +1123,20 @@ func (u *Unmarshaler) unmarshalValue(target reflect.Value, inputValue json.RawMe
 	isNum := targetType.Kind() == reflect.Int64 || targetType.Kind() == reflect.Uint64
 	if isNum && strings.HasPrefix(string(inputValue), `"`) {
 		inputValue = inputValue[1 : len(inputValue)-1]
+	}
+
+	if u.CoerceNumberToBool {
+		isBool := targetType.Kind() == reflect.Bool
+		if isBool {
+			switch string(inputValue) {
+			case "0":
+				target.SetBool(false)
+				return nil
+			case "1":
+				target.SetBool(true)
+				return nil
+			}
+		}
 	}
 
 	// Non-finite numbers can be encoded as strings.
